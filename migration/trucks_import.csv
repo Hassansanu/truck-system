@@ -1,0 +1,99 @@
+legacy_key,source_file,source_row,entry_date,truck_number,reported_purchase,reported_sale,reported_profit
+legacy-truck-1,truck Data.pdf,1,2025-06-21,C-2940,1991500.0,2094600.0,103100.0
+legacy-truck-2,truck Data.pdf,2,2025-06-21,P-9186,1706700.0,1744980.0,38280.0
+legacy-truck-3,truck Data.pdf,3,2025-06-23,1212 Wajid,2747100.0,2804400.0,57300.0
+legacy-truck-4,truck Data.pdf,4,2025-06-24,C-2940,1621400.0,1681020.0,59620.0
+legacy-truck-5,truck Data.pdf,5,2025-06-27,P-9681,1921830.0,1993300.0,71470.0
+legacy-truck-6,truck Data.pdf,6,2025-07-02,C-2940,2636980.0,2727480.0,90500.0
+legacy-truck-7,truck Data.pdf,7,2025-07-12,P 9681,1983940.0,2050130.0,66190.0
+legacy-truck-8,truck Data.pdf,8,2025-07-14,C 1977,1916650.0,1979090.0,62440.0
+legacy-truck-9,truck Data.pdf,9,2025-07-21,C 1977,2316460.0,2389250.0,72790.0
+legacy-truck-10,truck Data.pdf,10,2025-07-25,P 9681,1593810.0,1650240.0,56430.0
+legacy-truck-11,truck Data.pdf,11,2025-08-03,C 2940,1822140.0,1880080.0,57940.0
+legacy-truck-12,truck Data.pdf,12,2025-08-10,P 9681,1385400.0,1446600.0,61200.0
+legacy-truck-13,truck Data.pdf,13,2025-08-16,C 9681,2215500.0,2276400.0,60900.0
+legacy-truck-14,truck Data.pdf,14,2025-08-18,C 1977,1928710.0,1995980.0,67270.0
+legacy-truck-15,truck Data.pdf,15,2025-08-25,C1977,1458110.0,1516080.0,57970.0
+legacy-truck-17,truck Data.pdf,17,2025-09-01,P 9681,1960450.0,2020570.0,60120.0
+legacy-truck-18,truck Data.pdf,18,2025-09-14,C2996,1863120.0,1928710.0,65590.0
+legacy-truck-19,truck Data.pdf,19,2025-09-16,C2940,1534460.0,1607800.0,73340.0
+legacy-truck-20,truck Data.pdf,20,2025-09-23,C2940,2644950.0,2714250.0,69300.0
+legacy-truck-21,truck Data.pdf,21,2025-09-29,C2940,1519400.0,1562700.0,43300.0
+legacy-truck-22,truck Data.pdf,22,2025-10-05,1977,1397760.0,1453200.0,55440.0
+legacy-truck-23,truck Data.pdf,23,2025-10-09,9681,1719973.0,1777700.0,57727.0
+legacy-truck-24,truck Data.pdf,24,2025-10-13,345 Kirman Ada,1837808.0,1870100.0,32292.0
+legacy-truck-25,truck Data.pdf,25,2025-10-16,345,1893980.0,1950800.0,56820.0
+legacy-truck-26,truck Data.pdf,26,2025-10-23,9681,1717781.0,1760930.0,43149.0
+legacy-truck-27,truck Data.pdf,27,2025-11-03,9681,1642086.0,1686330.0,44244.0
+legacy-truck-28,truck Data.pdf,28,2025-11-13,C 1977 Qamar,1879320.0,1909480.0,30160.0
+legacy-truck-29,truck Data.pdf,29,2025-11-13,C 9681,1822560.0,1867890.0,45330.0
+legacy-truck-30,truck Data.pdf,30,2025-11-19,1977,1879720.0,1927960.0,48240.0
+legacy-truck-31,truck Data.pdf,31,2025-11-27,Mix sheno & distribution,1746080.0,1781060.0,34980.0
+legacy-truck-32,truck Data.pdf,32,2025-11-30,345,1608256.0,1649700.0,41444.0
+legacy-truck-33,truck Data.pdf,33,2025-12-02,Misbah Truck,1043700.0,1089300.0,45600.0
+legacy-truck-34,truck Data.pdf,34,2025-12-19,Misbah truck,2296730.0,2377550.0,80820.0
+legacy-truck-35,truck Data.pdf,35,2025-12-23,Misbah 3,2222920.0,2292360.0,69440.0
+legacy-truck-36,truck Data.pdf,36,2026-01-09,Jan 1st Truck Waqar,2198320.0,2249810.0,51490.0
+legacy-truck-37,truck Data.pdf,37,2026-01-17,2nd truck jan 2026,2123460.0,2176950.0,53490.0
+legacy-truck-38,truck Data.pdf,38,2026-01-21,3rd pallet,2182448.0,2233990.0,51542.0
+legacy-truck-39,truck Data.pdf,39,2026-02-11,FEB 1,2099710.0,2145320.0,45610.0
+legacy-truck-40,truck Data.pdf,40,2026-02-16,Feb 2,1964973.0,2018200.0,53227.0
+legacy-truck-41,truck Data.pdf,41,2026-02-19,feb 3,1886871.0,1938125.0,51254.0
+legacy-truck-42,truck Data.pdf,42,2026-02-23,Sheno,1930486.0,1967100.0,36614.0
+legacy-truck-43,truck Data.pdf,43,2026-02-27,Misbah Thall,1725610.0,1761480.0,35870.0
+legacy-truck-44,truck Data.pdf,44,2026-02-27,Feb 4,1992092.0,2038020.0,45928.0
+legacy-truck-45,truck Data.pdf,45,2026-03-02,Feb last truck,2014290.0,2061800.0,47510.0
+legacy-truck-46,truck Data.pdf,46,2026-03-07,March 1,2342346.0,2391500.0,49154.0
+legacy-truck-47,truck Data.pdf,47,2026-03-08,Wajid Truck,1541256.0,1559940.0,18684.0
+legacy-truck-48,truck Data.pdf,48,2026-03-10,Sheno,1748620.0,1773090.0,24470.0
+legacy-truck-49,truck Data.pdf,49,2026-03-10,12 pallet with sheno,1459616.0,1498600.0,38984.0
+legacy-truck-50,truck Data.pdf,50,2026-03-12,Dis Truck,1577772.0,1616000.0,38228.0
+legacy-truck-51,truck Data.pdf,51,2026-03-16,Qaisar Truck,1886608.0,1912885.0,26277.0
+legacy-truck-52,truck Data.pdf,52,2026-03-16,Wajid 2 Truck,2638152.0,2671440.0,33288.0
+legacy-truck-53,truck Data.pdf,53,2026-03-18,Dis Truck,3813724.0,3910770.0,97046.0
+legacy-truck-54,truck Data.pdf,54,2026-03-24,Dis Truck eid,1293775.0,1333405.0,39630.0
+legacy-truck-55,truck Data.pdf,55,2026-03-26,Wajid Truck,1173312.0,1189440.0,16128.0
+legacy-truck-57,truck Data.pdf,57,2026-03-26,Dis Truck two,2909760.0,3006360.0,96600.0
+legacy-truck-58,truck Data.pdf,58,2026-04-02,TAD 234,1596173.0,1631800.0,35627.0
+legacy-truck-59,truck Data.pdf,59,2026-04-04,Sheno Truck,1678328.0,1699760.0,21432.0
+legacy-truck-60,truck Data.pdf,60,2026-04-04,Dis Truck 2,3324992.0,3417750.0,92758.0
+legacy-truck-61,truck Data.pdf,61,2026-04-07,Laiqet Truck,1567104.0,1592500.0,25396.0
+legacy-truck-62,truck Data.pdf,62,2026-04-07,Two Dis Truck,3210888.0,3295750.0,84862.0
+legacy-truck-63,truck Data.pdf,63,2026-04-10,sheno truck,1579726.0,1601760.0,22034.0
+legacy-truck-64,truck Data.pdf,64,2026-04-10,Wajid Truck,1186480.0,1206040.0,19560.0
+legacy-truck-65,truck Data.pdf,65,2026-04-10,Distibution Truck,1613374.0,1656900.0,43526.0
+legacy-truck-66,truck Data.pdf,66,2026-04-14,Dis Truck,1166592.0,1209600.0,43008.0
+legacy-truck-67,truck Data.pdf,67,2026-04-16,Dis Truck,1653750.0,1719050.0,65300.0
+legacy-truck-68,truck Data.pdf,68,2026-04-21,wajid truck,1169280.0,1189440.0,20160.0
+legacy-truck-69,truck Data.pdf,69,2026-04-21,wajid mcb,1662618.0,1686690.0,24072.0
+legacy-truck-70,truck Data.pdf,70,2026-04-21,dis truck,1695782.0,1736600.0,40818.0
+legacy-truck-71,truck Data.pdf,71,2026-04-26,wajid n truck,1169280.0,1189440.0,20160.0
+legacy-truck-72,truck Data.pdf,72,2026-04-26,Dis two truck,3412700.0,3494700.0,82000.0
+legacy-truck-73,truck Data.pdf,73,2026-05-04,April Last Truck,5517965.0,5610090.0,92125.0
+legacy-truck-74,truck Data.pdf,74,2026-05-12,wajid 2 truck,2641980.0,2678440.0,36460.0
+legacy-truck-75,truck Data.pdf,75,2026-05-12,shenooo,1321740.0,1339620.0,17880.0
+legacy-truck-76,truck Data.pdf,76,2026-05-12,Distibution Truck 2,2761792.0,2834400.0,72608.0
+legacy-truck-77,truck Data.pdf,77,2026-05-19,Wajid Truck bb,1321740.0,1339620.0,17880.0
+legacy-truck-78,truck Data.pdf,78,2026-05-19,Gulzar Truck,1590750.0,1610900.0,20150.0
+legacy-truck-79,truck Data.pdf,79,2026-05-19,home two truck,2707510.0,2782260.0,74750.0
+legacy-truck-80,truck Data.pdf,80,2026-05-23,Wajid truck,1474200.0,1489800.0,15600.0
+legacy-truck-81,truck Data.pdf,81,2026-05-23,HomeT,1474925.0,1514875.0,39950.0
+legacy-truck-82,truck Data.pdf,82,2026-05-25,Wajid new,1886862.0,1908260.0,21398.0
+legacy-truck-83,truck Data.pdf,83,2026-05-26,Shenoo new,1517270.0,1535220.0,17950.0
+legacy-truck-84,truck Data.pdf,84,2026-05-26,Dis new,1926276.0,1969800.0,43524.0
+legacy-truck-85,truck Data.pdf,85,2026-05-31,dis eid,1578860.0,1620160.0,41300.0
+legacy-truck-86,truck Data.pdf,86,2026-05-31,Last jambo truck,1478400.0,1520400.0,42000.0
+legacy-truck-87,truck Data.pdf,87,2026-06-02,Trucka,1899678.0,1943200.0,43522.0
+legacy-truck-88,truck Data.pdf,88,2026-06-03,Shenoa,1474200.0,1497600.0,23400.0
+legacy-truck-89,truck Data.pdf,89,2026-06-04,wajdn,1789596.0,1809490.0,19894.0
+legacy-truck-90,truck Data.pdf,90,2026-06-04,home a,1886600.0,1929250.0,42650.0
+legacy-truck-91,truck Data.pdf,91,2026-06-06,Shenob,1169280.0,1189440.0,20160.0
+legacy-truck-92,truck Data.pdf,92,2026-06-06,Homebb,1699800.0,1741600.0,41800.0
+legacy-truck-93,truck Data.pdf,93,2026-06-07,Homec,1176000.0,1209600.0,33600.0
+legacy-truck-94,truck Data.pdf,94,2026-06-08,wajidd,1698656.0,1722420.0,23764.0
+legacy-truck-95,truck Data.pdf,95,2026-06-08,homee,2054422.0,2102800.0,48378.0
+legacy-truck-96,truck Data.pdf,96,2026-06-10,Hussain Abbas,1589854.0,1609600.0,19746.0
+legacy-truck-97,truck Data.pdf,97,2026-06-10,homef,1654770.0,1697920.0,43150.0
+legacy-truck-98,truck Data.pdf,98,2026-06-11,wajidc,1723510.0,1742610.0,19100.0
+legacy-truck-99,truck Data.pdf,99,2026-06-12,homei,1835636.0,1879000.0,43364.0
+legacy-truck-100,truck Data.pdf,100,2026-06-12,zameer,1941506.0,1962870.0,21364.0
