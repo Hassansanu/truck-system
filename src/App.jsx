@@ -16,6 +16,7 @@ const navItems = [
   { id: 'trucks', label: 'Truck Entries', icon: Truck },
   { id: 'salesman', label: 'Salesman Account', icon: UserRound },
   { id: 'cashbook', label: 'Personal Cash Book', icon: BookOpen },
+  { id: 'reports', label: 'Monthly Reports', icon: FileText },
 ]
 
 const AUTH_TIMEOUT_MS = 10000
@@ -183,7 +184,7 @@ function Workspace({ session, onLogout }) {
             <button className="icon-button lg:hidden" onClick={() => setSidebar(true)}><Menu size={21} /></button>
             <div>
               <h1 className="font-display text-lg font-bold md:text-xl">{navItems.find((item) => item.id === page)?.label}</h1>
-              <p className="hidden text-xs text-muted sm:block">Friday, 12 June 2026</p>
+              <p className="hidden text-xs text-muted sm:block">{new Intl.DateTimeFormat('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -202,6 +203,7 @@ function Workspace({ session, onLogout }) {
               {page === 'trucks' && <Trucks data={data} reload={() => load({ showLoader: false })} />}
               {page === 'salesman' && <Salesman data={data} reload={() => load({ showLoader: false })} />}
               {page === 'cashbook' && <CashBook data={data} reload={() => load({ showLoader: false })} />}
+              {page === 'reports' && <MonthlyReports data={data} />}
             </>
           )}
         </main>
@@ -474,6 +476,80 @@ function CashBook({ data, reload }) {
   )
 }
 
+function MonthlyReports({ data }) {
+  const reports = useMonthlyReports(data)
+  const [month, setMonth] = useState(() => reports[0]?.month || today().slice(0, 7))
+  const selected = reports.find((report) => report.month === month) || emptyMonthlyReport(month)
+
+  const exportReport = () => downloadCsv(
+    `monthly-report-${month}.csv`,
+    [{
+      month: formatMonth(month),
+      trucks: selected.totalTrucks,
+      management_investment: selected.totalPurchase,
+      truck_sale_value: selected.totalSale,
+      expected_profit: selected.totalProfit,
+      salesman_collections: selected.totalCollections,
+      salesman_outstanding_added: selected.outstanding,
+      cash_in: selected.cashIn,
+      cash_out: selected.cashOut,
+      net_cash_movement: selected.personalBalance,
+    }],
+  )
+
+  return (
+    <div className="space-y-6">
+      <PageHeading eyebrow="Monthly business summary" title="Monthly reports" description="Review management investment, truck activity, collections, and cash movement for each month.">
+        <label className="block">
+          <span className="sr-only">Report month</span>
+          <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="input min-w-44" />
+        </label>
+        <button onClick={exportReport} className="btn-secondary"><Download size={17} /> Export report</button>
+      </PageHeading>
+
+      <div className="rounded-2xl border border-brand-100 bg-brand-50/70 p-4 text-sm text-brand-800 dark:border-brand-900 dark:bg-brand-950/30 dark:text-brand-200">
+        <strong>Management investment</strong> is calculated from the total purchase value of trucks entered during {formatMonth(month)}.
+      </div>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Trucks Arrived" value={selected.totalTrucks} note={formatMonth(month)} icon={Truck} tone="green" />
+        <MetricCard label="Management Investment" value={currency(selected.totalPurchase)} note="Truck purchase value" icon={WalletCards} tone="amber" />
+        <MetricCard label="Cash In" value={currency(selected.cashIn)} note="Cash book receipts" icon={ArrowDownLeft} tone="green" />
+        <MetricCard label="Cash Out" value={currency(selected.cashOut)} note="Cash book payments" icon={ArrowUpRight} tone="red" />
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Truck Sale Value" value={currency(selected.totalSale)} note="Value assigned to trucks" icon={CircleDollarSign} tone="blue" />
+        <MetricCard label="Expected Profit" value={currency(selected.totalProfit)} note={`${selected.margin.toFixed(1)}% monthly margin`} icon={BarChart3} tone="violet" />
+        <MetricCard label="Salesman Collections" value={currency(selected.totalCollections)} note={`${selected.collectionCount} receipts`} icon={Banknote} tone="green" />
+        <MetricCard label="Net Cash Movement" value={currency(selected.personalBalance)} note="Cash in minus cash out" icon={WalletCards} tone={selected.personalBalance < 0 ? 'red' : 'violet'} />
+      </section>
+
+      <div className="card overflow-hidden">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center dark:border-slate-800">
+          <div><h3 className="card-title">Monthly comparison</h3><p className="card-subtitle">Select any row to open that month’s complete summary.</p></div>
+          <span className="badge badge-slate">{reports.length} month{reports.length !== 1 && 's'}</span>
+        </div>
+        <div className="table-scroll"><table><thead><tr><th>Month</th><th>Trucks</th><th>Management investment</th><th>Cash in</th><th>Cash out</th><th>Collections</th><th>Profit</th><th>Net cash</th></tr></thead><tbody>
+          {reports.map((report) => (
+            <tr key={report.month} onClick={() => setMonth(report.month)} className={`cursor-pointer ${report.month === month ? 'bg-brand-50/70 dark:bg-brand-900/20' : ''}`}>
+              <td className="font-bold text-ink dark:text-white">{formatMonth(report.month)}</td>
+              <td><span className="badge badge-blue">{report.totalTrucks}</span></td>
+              <td className="font-bold text-amber-700 dark:text-amber-300">{currency(report.totalPurchase)}</td>
+              <td className="font-bold text-emerald-700 dark:text-emerald-300">{currency(report.cashIn)}</td>
+              <td className="font-bold text-red-600 dark:text-red-300">{currency(report.cashOut)}</td>
+              <td className="font-bold text-blue-700 dark:text-blue-300">{currency(report.totalCollections)}</td>
+              <td className="font-bold text-violet-700 dark:text-violet-300">{currency(report.totalProfit)}</td>
+              <td className={`font-extrabold ${report.personalBalance < 0 ? amountToneClasses.red : amountToneClasses.green}`}>{currency(report.personalBalance)}</td>
+            </tr>
+          ))}
+          {!reports.length && <tr><td colSpan="8" className="py-12 text-center text-muted">No monthly data is available yet.</td></tr>}
+        </tbody></table></div>
+      </div>
+    </div>
+  )
+}
+
 function SimpleEntry({ title, subtitle, initial, dateKey, onClose, onSave }) {
   const [form, setForm] = useState(initial || { [dateKey]: today(), amount: '', description: '' })
   const [saving, setSaving] = useState(false)
@@ -609,6 +685,65 @@ function useLedger(data) {
     ].sort((a, b) => a.date.localeCompare(b.date) || b.debit - a.debit)
     let balance = 0
     return rows.map((row) => { balance += row.debit - row.credit; return { ...row, balance } }).reverse()
+  }, [data])
+}
+
+function emptyMonthlyReport(month) {
+  return {
+    month,
+    totalTrucks: 0,
+    totalPurchase: 0,
+    totalSale: 0,
+    totalProfit: 0,
+    margin: 0,
+    totalCollections: 0,
+    collectionCount: 0,
+    outstanding: 0,
+    cashIn: 0,
+    cashOut: 0,
+    personalBalance: 0,
+  }
+}
+
+function formatMonth(month) {
+  if (!month) return ''
+  return new Intl.DateTimeFormat('en-PK', { month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00`))
+}
+
+function useMonthlyReports(data) {
+  return useMemo(() => {
+    const months = new Set([
+      ...data.trucks.map((truck) => truck.entry_date?.slice(0, 7)),
+      ...data.cashCollections.map((collection) => collection.collection_date?.slice(0, 7)),
+      ...data.cashBook.map((row) => row.transaction_date?.slice(0, 7)),
+    ].filter(Boolean))
+
+    return [...months].sort((a, b) => b.localeCompare(a)).map((month) => {
+      const trucks = data.trucks.filter((truck) => truck.entry_date?.startsWith(month))
+      const collections = data.cashCollections.filter((collection) => collection.collection_date?.startsWith(month))
+      const cashBook = data.cashBook.filter((row) => row.transaction_date?.startsWith(month))
+      const totalPurchase = trucks.reduce((sum, truck) => sum + Number(truck.total_purchase), 0)
+      const totalSale = trucks.reduce((sum, truck) => sum + Number(truck.total_sale), 0)
+      const totalProfit = totalSale - totalPurchase
+      const totalCollections = collections.reduce((sum, collection) => sum + Number(collection.amount), 0)
+      const cashIn = cashBook.filter((row) => row.type === 'in').reduce((sum, row) => sum + Number(row.amount), 0)
+      const cashOut = cashBook.filter((row) => row.type === 'out').reduce((sum, row) => sum + Number(row.amount), 0)
+
+      return {
+        month,
+        totalTrucks: trucks.length,
+        totalPurchase,
+        totalSale,
+        totalProfit,
+        margin: totalSale ? totalProfit / totalSale * 100 : 0,
+        totalCollections,
+        collectionCount: collections.length,
+        outstanding: totalSale - totalCollections,
+        cashIn,
+        cashOut,
+        personalBalance: cashIn - cashOut,
+      }
+    })
   }, [data])
 }
 
