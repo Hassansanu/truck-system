@@ -35,8 +35,8 @@ const authRequest = async (request) => {
   }
 }
 
-const emptyProduct = () => ({ id: crypto.randomUUID(), product_name: '', quantity: '', purchase_rate: '', sale_rate: '' })
-const emptyTruck = () => ({ id: crypto.randomUUID(), truck_number: '', entry_date: today(), products: [emptyProduct()] })
+const emptyProduct = () => ({ _key: crypto.randomUUID(), product_name: '', quantity: '', purchase_rate: '', sale_rate: '' })
+const emptyTruck = () => ({ truck_number: '', entry_date: today(), products: [emptyProduct()] })
 
 function App() {
   const [session, setSession] = useState(null)
@@ -324,7 +324,7 @@ function Trucks({ data, reload }) {
 }
 
 function TruckForm({ initial, onClose, onSaved }) {
-  const [form, setForm] = useState(initial ? { ...initial, products: initial.products.map((p) => ({ ...p })) } : emptyTruck())
+  const [form, setForm] = useState(initial ? { ...initial, products: initial.products.map((p) => ({ ...p, _key: String(p.id) })) } : emptyTruck())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const totals = useMemo(() => {
@@ -333,7 +333,7 @@ function TruckForm({ initial, onClose, onSaved }) {
     return { purchase, sale, profit: sale - purchase }
   }, [form.products])
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }))
-  const setProduct = (id, key, value) => setForm((current) => ({ ...current, products: current.products.map((p) => p.id === id ? { ...p, [key]: value } : p) }))
+  const setProduct = (productKey, key, value) => setForm((current) => ({ ...current, products: current.products.map((p) => p._key === productKey ? { ...p, [key]: value } : p) }))
   const submit = async (event) => {
     event.preventDefault()
     if (form.products.some((p) => !p.product_name || Number(p.quantity) <= 0 || Number(p.purchase_rate) < 0 || Number(p.sale_rate) < 0)) {
@@ -363,13 +363,13 @@ function TruckForm({ initial, onClose, onSaved }) {
           {form.products.map((p, index) => {
             const purchase = Number(p.quantity || 0) * Number(p.purchase_rate || 0)
             const sale = Number(p.quantity || 0) * Number(p.sale_rate || 0)
-            return <div key={p.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/40">
-              <div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-muted">Product {index + 1}</span>{form.products.length > 1 && <button type="button" onClick={() => setForm((f) => ({ ...f, products: f.products.filter((row) => row.id !== p.id) }))} className="text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>}</div>
+            return <div key={p._key} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+              <div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-muted">Product {index + 1}</span>{form.products.length > 1 && <button type="button" onClick={() => setForm((f) => ({ ...f, products: f.products.filter((row) => row._key !== p._key) }))} className="text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>}</div>
               <div className="grid gap-3 md:grid-cols-4">
-                <Field label="Product name" value={p.product_name} onChange={(v) => setProduct(p.id, 'product_name', v)} placeholder="Product" required />
-                <Field label="Quantity" type="number" value={p.quantity} onChange={(v) => setProduct(p.id, 'quantity', v)} placeholder="0" required min="1" step="1" />
-                <Field label="Purchase rate" type="number" value={p.purchase_rate} onChange={(v) => setProduct(p.id, 'purchase_rate', v)} placeholder="Rs 0" required min="0" step="1" />
-                <Field label="Sale rate" type="number" value={p.sale_rate} onChange={(v) => setProduct(p.id, 'sale_rate', v)} placeholder="Rs 0" required min="0" step="1" />
+                <Field label="Product name" value={p.product_name} onChange={(v) => setProduct(p._key, 'product_name', v)} placeholder="Product" required />
+                <Field label="Quantity" type="number" value={p.quantity} onChange={(v) => setProduct(p._key, 'quantity', v)} placeholder="0" required min="1" step="1" />
+                <Field label="Purchase rate" type="number" value={p.purchase_rate} onChange={(v) => setProduct(p._key, 'purchase_rate', v)} placeholder="Rs 0" required min="0" step="1" />
+                <Field label="Sale rate" type="number" value={p.sale_rate} onChange={(v) => setProduct(p._key, 'sale_rate', v)} placeholder="Rs 0" required min="0" step="1" />
               </div>
               <div className="mt-3 flex gap-6 border-t border-slate-200 pt-3 text-xs dark:border-slate-700"><span className="text-muted">Purchase amount <strong className="ml-1 text-ink dark:text-white">{currency(purchase)}</strong></span><span className="text-muted">Sale amount <strong className="ml-1 text-ink dark:text-white">{currency(sale)}</strong></span></div>
             </div>
@@ -467,7 +467,7 @@ function CashBook({ data, reload }) {
 }
 
 function SimpleEntry({ title, subtitle, initial, dateKey, onClose, onSave }) {
-  const [form, setForm] = useState(initial || { id: crypto.randomUUID(), [dateKey]: today(), amount: '', description: '' })
+  const [form, setForm] = useState(initial || { [dateKey]: today(), amount: '', description: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const submit = async (event) => {

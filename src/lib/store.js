@@ -92,7 +92,8 @@ export const dataService = {
     const normalizedTruck = {
       ...truck,
       products: truck.products.map((product) => ({
-        ...product,
+        ...(product.id ? { id: product.id } : {}),
+        product_name: product.product_name,
         quantity: Number(product.quantity),
         purchase_rate: Number(product.purchase_rate),
         sale_rate: Number(product.sale_rate),
@@ -108,35 +109,46 @@ export const dataService = {
       return
     }
     const header = {
-      ...(truck.id ? { id: truck.id } : {}),
       truck_number: truck.truck_number,
       entry_date: truck.entry_date,
     }
     const products = normalizedTruck.products
-    const isExistingTruck = Boolean(truck.created_at)
+    const isExistingTruck = Boolean(truck.id)
     const existingProducts = isExistingTruck
       ? await databaseRequest(
           supabase.from('truck_products').select('id').eq('truck_id', truck.id),
           'Loading existing products',
         )
       : []
-    const savedTruck = await databaseRequest(
-      supabase.from('trucks').upsert(header).select().single(),
-      isExistingTruck ? 'Updating truck entry' : 'Creating truck entry',
-    )
-    const productRows = products.map((product) => ({
-      id: product.id,
+    const savedTruck = isExistingTruck
+      ? await databaseRequest(
+          supabase.from('trucks').update(header).eq('id', truck.id).select().single(),
+          'Updating truck entry',
+        )
+      : await databaseRequest(
+          supabase.from('trucks').insert(header).select().single(),
+          'Creating truck entry',
+        )
+    const productPayload = (product) => ({
       product_name: product.product_name,
       quantity: product.quantity,
       purchase_rate: product.purchase_rate,
       sale_rate: product.sale_rate,
       truck_id: savedTruck.id,
-    }))
-    await databaseRequest(
-      supabase.from('truck_products').upsert(productRows),
-      'Saving truck products',
-    )
-    const currentIds = new Set(productRows.map((product) => product.id))
+    })
+    const existingProductRows = products.filter((product) => product.id)
+    const newProductRows = products.filter((product) => !product.id).map(productPayload)
+    await Promise.all(existingProductRows.map((product) => databaseRequest(
+      supabase.from('truck_products').update(productPayload(product)).eq('id', product.id),
+      'Updating truck product',
+    )))
+    if (newProductRows.length) {
+      await databaseRequest(
+        supabase.from('truck_products').insert(newProductRows),
+        'Adding truck products',
+      )
+    }
+    const currentIds = new Set(existingProductRows.map((product) => product.id))
     const removedIds = existingProducts.filter((product) => !currentIds.has(product.id)).map((product) => product.id)
     if (removedIds.length) {
       await databaseRequest(
@@ -158,10 +170,19 @@ export const dataService = {
 
   async saveCollection(collection) {
     if (!isSupabaseConfigured) return this.saveLocalList('cashCollections', collection)
-    await databaseRequest(
-      supabase.from('cash_collections').upsert({ ...collection, amount: Number(collection.amount) }),
-      collection.created_at ? 'Updating cash collection' : 'Saving cash collection',
-    )
+    const payload = {
+      collection_date: collection.collection_date,
+      amount: Number(collection.amount),
+      description: collection.description,
+    }
+    if (collection.id) {
+      await databaseRequest(
+        supabase.from('cash_collections').update(payload).eq('id', collection.id),
+        'Updating cash collection',
+      )
+    } else {
+      await databaseRequest(supabase.from('cash_collections').insert(payload), 'Saving cash collection')
+    }
   },
 
   async deleteCollection(id) {
@@ -175,16 +196,19 @@ export const dataService = {
   async saveCashBook(record) {
     if (!isSupabaseConfigured) return this.saveLocalList('cashBook', record)
     const payload = {
-      ...(record.id ? { id: record.id } : {}),
       transaction_date: record.transaction_date,
-      type: record.type,
+      transaction_type: record.type,
       amount: Number(record.amount),
       description: record.description,
     }
-    await databaseRequest(
-      supabase.from('cash_book').upsert(payload),
-      record.created_at ? 'Updating cash book entry' : 'Saving cash book entry',
-    )
+    if (record.id) {
+      await databaseRequest(
+        supabase.from('cash_book').update(payload).eq('id', record.id),
+        'Updating cash book entry',
+      )
+    } else {
+      await databaseRequest(supabase.from('cash_book').insert(payload), 'Saving cash book entry')
+    }
   },
 
   async deleteCashBook(id) {

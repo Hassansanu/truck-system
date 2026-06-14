@@ -34,7 +34,7 @@ create table public.cash_collections (
 create table public.cash_book (
   id uuid primary key default gen_random_uuid(),
   transaction_date date not null default current_date,
-  type text not null check (type in ('in', 'out')),
+  transaction_type text not null check (transaction_type in ('in', 'out')),
   amount numeric(14, 2) not null check (amount > 0),
   description text not null,
   created_at timestamptz not null default now(),
@@ -46,7 +46,7 @@ create index trucks_truck_number_idx on public.trucks using btree(lower(truck_nu
 create index truck_products_truck_id_idx on public.truck_products(truck_id);
 create index cash_collections_date_idx on public.cash_collections(collection_date desc);
 create index cash_book_date_idx on public.cash_book(transaction_date desc);
-create index cash_book_type_idx on public.cash_book(type);
+create index cash_book_type_idx on public.cash_book(transaction_type);
 
 alter table public.trucks enable row level security;
 alter table public.truck_products enable row level security;
