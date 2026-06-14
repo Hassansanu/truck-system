@@ -19,6 +19,13 @@ const navItems = [
 ]
 
 const AUTH_TIMEOUT_MS = 10000
+const amountToneClasses = {
+  blue: 'text-blue-700 dark:text-blue-300',
+  green: 'text-emerald-700 dark:text-emerald-300',
+  red: 'text-red-600 dark:text-red-300',
+  amber: 'text-amber-700 dark:text-amber-300',
+  violet: 'text-violet-700 dark:text-violet-300',
+}
 const authRequest = async (request) => {
   let timeoutId
   try {
@@ -261,15 +268,15 @@ function Dashboard({ data, navigate }) {
         <div className="card overflow-hidden">
           <div className="flex items-center justify-between p-5 md:px-6"><div><h3 className="card-title">Recent truck entries</h3><p className="card-subtitle">Latest inventory arrivals</p></div><button onClick={() => navigate('trucks')} className="text-sm font-semibold text-brand-600">View all</button></div>
           <div className="table-scroll"><table><thead><tr><th>Truck</th><th>Date</th><th>Products</th><th>Sale value</th><th>Profit</th></tr></thead><tbody>
-            {recent.map((truck) => <tr key={truck.id}><td><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800"><Truck size={17} /></span><span className="font-semibold">{truck.truck_number}</span></div></td><td>{formatDate(truck.entry_date)}</td><td>{truck.products.length}</td><td className="font-semibold">{currency(truck.total_sale)}</td><td><span className="badge badge-green">{currency(truck.profit)}</span></td></tr>)}
+            {recent.map((truck) => <tr key={truck.id}><td><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800"><Truck size={17} /></span><span className="font-semibold">{truck.truck_number}</span></div></td><td>{formatDate(truck.entry_date)}</td><td>{truck.products.length}</td><td className="font-bold text-blue-700 dark:text-blue-300">{currency(truck.total_sale)}</td><td><span className="badge badge-green">{currency(truck.profit)}</span></td></tr>)}
           </tbody></table></div>
         </div>
         <div className="card p-5 md:p-6">
           <div className="flex items-center justify-between"><div><h3 className="card-title">Cash position</h3><p className="card-subtitle">Available balances</p></div><Banknote className="text-brand-600" size={22} /></div>
           <div className="mt-6 space-y-4">
-            <CashSummary label="Personal cash balance" value={metrics.personalBalance} />
-            <CashSummary label="Total cash in" value={metrics.cashIn} />
-            <CashSummary label="Total cash out" value={metrics.cashOut} />
+            <CashSummary label="Personal cash balance" value={metrics.personalBalance} tone={metrics.personalBalance < 0 ? 'red' : 'violet'} />
+            <CashSummary label="Total cash in" value={metrics.cashIn} tone="green" />
+            <CashSummary label="Total cash out" value={metrics.cashOut} tone="red" />
           </div>
           <button onClick={() => navigate('cashbook')} className="mt-5 flex w-full items-center justify-center gap-2 text-sm font-semibold text-brand-600">View cash book <ArrowRight size={16} /></button>
         </div>
@@ -279,11 +286,11 @@ function Dashboard({ data, navigate }) {
 }
 
 function MetricCard({ label, value, note, icon: Icon, tone }) {
-  return <div className="card p-5"><div className="flex items-start justify-between"><div><p className="text-xs font-semibold text-muted">{label}</p><p className="mt-2 font-display text-2xl font-bold">{value}</p></div><span className={`metric-icon metric-${tone}`}><Icon size={20} /></span></div><p className="mt-4 text-[11px] text-muted">{note}</p></div>
+  return <div className="card p-5"><div className="flex items-start justify-between"><div><p className="text-xs font-semibold text-muted">{label}</p><p className={`mt-2 font-display text-2xl font-extrabold ${amountToneClasses[tone] || ''}`}>{value}</p></div><span className={`metric-icon metric-${tone}`}><Icon size={20} /></span></div><p className="mt-4 text-[11px] text-muted">{note}</p></div>
 }
 
-function CashSummary({ label, value }) {
-  return <div className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0 dark:border-slate-800"><span className="text-sm text-muted">{label}</span><strong className="text-sm">{currency(value)}</strong></div>
+function CashSummary({ label, value, tone }) {
+  return <div className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0 dark:border-slate-800"><span className="text-sm text-muted">{label}</span><strong className={`rounded-lg px-2.5 py-1 text-sm ${amountToneClasses[tone] || ''}`}>{currency(value)}</strong></div>
 }
 
 function Trucks({ data, reload }) {
@@ -314,7 +321,7 @@ function Trucks({ data, reload }) {
       <div className="card overflow-hidden">
         <Toolbar query={query} setQuery={setQuery} placeholder="Search truck number..." onExport={() => downloadCsv('truck-entries.csv', filtered.map((t) => ({ truck_number: t.truck_number, date: t.entry_date, purchase_value: t.total_purchase, sale_value: t.total_sale, profit: t.profit })))} />
         <div className="table-scroll"><table><thead><tr><th>Truck number</th><th>Entry date</th><th>Products</th><th>Purchase</th><th>Sale</th><th>Profit</th><th></th></tr></thead><tbody>
-          {filtered.map((truck) => <tr key={truck.id}><td className="font-semibold">{truck.truck_number}</td><td>{formatDate(truck.entry_date)}</td><td><span className="badge badge-slate">{truck.products.length} item{truck.products.length !== 1 && 's'}</span></td><td>{currency(truck.total_purchase)}</td><td className="font-semibold">{currency(truck.total_sale)}</td><td><span className="badge badge-green">{currency(truck.profit)}</span></td><td><RowActions onEdit={() => edit(truck)} onDelete={() => setDeleting(truck)} /></td></tr>)}
+          {filtered.map((truck) => <tr key={truck.id}><td className="font-semibold">{truck.truck_number}</td><td>{formatDate(truck.entry_date)}</td><td><span className="badge badge-slate">{truck.products.length} item{truck.products.length !== 1 && 's'}</span></td><td className="font-semibold text-amber-700 dark:text-amber-300">{currency(truck.total_purchase)}</td><td className="font-bold text-blue-700 dark:text-blue-300">{currency(truck.total_sale)}</td><td><span className="badge badge-green">{currency(truck.profit)}</span></td><td><RowActions onEdit={() => edit(truck)} onDelete={() => setDeleting(truck)} /></td></tr>)}
         </tbody></table></div>
         <TableFooter count={filtered.length} />
       </div>
@@ -367,17 +374,17 @@ function TruckForm({ initial, onClose, onSaved }) {
             return <div key={p._key} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/40">
               <div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-muted">Product {index + 1}</span>{form.products.length > 1 && <button type="button" onClick={() => setForm((f) => ({ ...f, products: f.products.filter((row) => row._key !== p._key) }))} className="text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>}</div>
               <div className="grid gap-3 md:grid-cols-4">
-                <SelectField label="Product name" value={p.product_name} onChange={(v) => setProduct(p._key, 'product_name', v)} options={PRODUCT_OPTIONS} placeholder="Select product" required />
+                <ProductSearchField label="Product name" value={p.product_name} onChange={(v) => setProduct(p._key, 'product_name', v)} options={PRODUCT_OPTIONS} placeholder="Type to search products" required />
                 <Field label="Quantity" type="number" value={p.quantity} onChange={(v) => setProduct(p._key, 'quantity', v)} placeholder="0" required min="1" step="1" />
                 <Field label="Purchase rate" type="number" value={p.purchase_rate} onChange={(v) => setProduct(p._key, 'purchase_rate', v)} placeholder="Rs 0" required min="0" step="1" />
                 <Field label="Sale rate" type="number" value={p.sale_rate} onChange={(v) => setProduct(p._key, 'sale_rate', v)} placeholder="Rs 0" required min="0" step="1" />
               </div>
-              <div className="mt-3 flex gap-6 border-t border-slate-200 pt-3 text-xs dark:border-slate-700"><span className="text-muted">Purchase amount <strong className="ml-1 text-ink dark:text-white">{currency(purchase)}</strong></span><span className="text-muted">Sale amount <strong className="ml-1 text-ink dark:text-white">{currency(sale)}</strong></span></div>
+              <div className="mt-3 flex gap-6 border-t border-slate-200 pt-3 text-xs dark:border-slate-700"><span className="text-muted">Purchase amount <strong className="ml-1 text-amber-700 dark:text-amber-300">{currency(purchase)}</strong></span><span className="text-muted">Sale amount <strong className="ml-1 text-blue-700 dark:text-blue-300">{currency(sale)}</strong></span></div>
             </div>
           })}
         </div>
         <div className="mt-5 grid gap-3 rounded-2xl bg-brand-50 p-4 sm:grid-cols-3 dark:bg-brand-900/30">
-          <Total label="Total Purchase" value={totals.purchase} /><Total label="Total Sale" value={totals.sale} /><Total label="Expected Profit" value={totals.profit} accent />
+          <Total label="Total Purchase" value={totals.purchase} tone="amber" /><Total label="Total Sale" value={totals.sale} tone="blue" /><Total label="Expected Profit" value={totals.profit} tone={totals.profit < 0 ? 'red' : 'green'} />
         </div>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         <ModalActions onClose={onClose} saving={saving} label={initial ? 'Save changes' : 'Save truck entry'} />
@@ -417,7 +424,7 @@ function Salesman({ data, reload }) {
         <div className="border-b border-slate-100 p-5 dark:border-slate-800"><h3 className="card-title">Account ledger</h3><p className="card-subtitle">A chronological record of all debits and credits.</p></div>
         <Toolbar query={query} setQuery={setQuery} placeholder="Search ledger..." onExport={() => downloadCsv('salesman-ledger.csv', ledger)} />
         <div className="table-scroll"><table><thead><tr><th>Date</th><th>Transaction type</th><th>Description</th><th>Debit</th><th>Credit</th><th>Running balance</th><th></th></tr></thead><tbody>
-          {ledger.map((row) => <tr key={`${row.type}-${row.id}`}><td>{formatDate(row.date)}</td><td><span className={`badge ${row.type === 'Truck Entry' ? 'badge-blue' : 'badge-green'}`}>{row.type}</span></td><td>{row.description}</td><td className="font-semibold">{row.debit ? currency(row.debit) : '—'}</td><td className="font-semibold text-brand-600">{row.credit ? currency(row.credit) : '—'}</td><td className="font-bold">{currency(row.balance)}</td><td>{row.type === 'Cash Received' && <RowActions onEdit={() => { setEditing(data.cashCollections.find((c) => c.id === row.id)); setFormOpen(true) }} onDelete={() => setDeleting(data.cashCollections.find((c) => c.id === row.id))} />}</td></tr>)}
+          {ledger.map((row) => <tr key={`${row.type}-${row.id}`}><td>{formatDate(row.date)}</td><td><span className={`badge ${row.type === 'Truck Entry' ? 'badge-blue' : 'badge-green'}`}>{row.type}</span></td><td>{row.description}</td><td className="font-bold text-blue-700 dark:text-blue-300">{row.debit ? currency(row.debit) : '—'}</td><td className="font-bold text-emerald-700 dark:text-emerald-300">{row.credit ? currency(row.credit) : '—'}</td><td className={`font-extrabold ${row.balance > 0 ? amountToneClasses.amber : amountToneClasses.green}`}>{currency(row.balance)}</td><td>{row.type === 'Cash Received' && <RowActions onEdit={() => { setEditing(data.cashCollections.find((c) => c.id === row.id)); setFormOpen(true) }} onDelete={() => setDeleting(data.cashCollections.find((c) => c.id === row.id))} />}</td></tr>)}
         </tbody></table></div><TableFooter count={ledger.length} />
       </div>
       {formOpen && <SimpleEntry title={editing ? 'Edit cash collection' : 'Cash collection'} subtitle="Record cash received from the salesman." initial={editing} dateKey="collection_date" onClose={() => { setFormOpen(false); setEditing(null) }} onSave={save} />}
@@ -451,8 +458,8 @@ function CashBook({ data, reload }) {
       </PageHeading>
       <div className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Total Cash In" value={currency(metrics.cashIn)} note="All incoming cash" icon={ArrowDownLeft} tone="green" />
-        <MetricCard label="Total Cash Out" value={currency(metrics.cashOut)} note="All outgoing cash" icon={ArrowUpRight} tone="amber" />
-        <MetricCard label="Current Cash Balance" value={currency(metrics.personalBalance)} note="Available personal cash" icon={Banknote} tone="violet" />
+        <MetricCard label="Total Cash Out" value={currency(metrics.cashOut)} note="All outgoing cash" icon={ArrowUpRight} tone="red" />
+        <MetricCard label="Current Cash Balance" value={currency(metrics.personalBalance)} note="Available personal cash" icon={Banknote} tone={metrics.personalBalance < 0 ? 'red' : 'violet'} />
       </div>
       <div className="card overflow-hidden">
         <div className="border-b border-slate-100 p-5 dark:border-slate-800"><h3 className="card-title">Cash book transactions</h3><p className="card-subtitle">Cash in and cash out history.</p></div>
@@ -510,16 +517,43 @@ function Field({ label, value, onChange, type = 'text', ...props }) {
   return <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span><input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="input" {...props} /></label>
 }
 
-function SelectField({ label, value, onChange, options, placeholder, ...props }) {
-  const availableOptions = value && !options.includes(value) ? [value, ...options] : options
+function ProductSearchField({ label, value, onChange, options, placeholder, ...props }) {
+  const [open, setOpen] = useState(false)
+  const query = value.trim().toLowerCase()
+  const matches = query
+    ? options.filter((option) => option.toLowerCase().includes(query))
+    : options
+
   return (
-    <label className="block">
+    <div className="relative">
       <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="input" {...props}>
-        <option value="">{placeholder}</option>
-        {availableOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-      </select>
-    </label>
+      <input
+        value={value}
+        onChange={(event) => { onChange(event.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        className="input pr-9"
+        placeholder={placeholder}
+        autoComplete="off"
+        {...props}
+      />
+      <Search className="pointer-events-none absolute right-3 top-[2.35rem] text-slate-400" size={16} />
+      {open && (
+        <div className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+          {matches.length ? matches.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => { onChange(option); setOpen(false) }}
+              className="block w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
+            >
+              {option}
+            </button>
+          )) : <p className="px-3 py-3 text-xs text-muted">No matching product found.</p>}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -547,8 +581,8 @@ function Confirm({ title, text, onCancel, onConfirm }) {
   return <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/45 p-5 backdrop-blur-sm"><div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900"><div className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-600 dark:bg-red-950"><Trash2 size={20} /></div><h3 className="mt-5 font-display text-xl font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-muted">{text}</p>{error && <p className="mt-3 text-sm text-red-600">{error}</p>}<div className="mt-6 flex justify-end gap-2"><button disabled={busy} onClick={onCancel} className="btn-secondary">Cancel</button><button disabled={busy} onClick={confirm} className="btn-danger disabled:cursor-not-allowed disabled:opacity-60">{busy ? 'Deleting...' : 'Delete record'}</button></div></div></div>
 }
 
-function Total({ label, value, accent }) {
-  return <div><p className="text-[11px] font-semibold text-muted">{label}</p><p className={`mt-1 font-display text-lg font-bold ${accent ? 'text-brand-700 dark:text-brand-300' : ''}`}>{currency(value)}</p></div>
+function Total({ label, value, tone }) {
+  return <div><p className="text-[11px] font-semibold text-muted">{label}</p><p className={`mt-1 font-display text-lg font-extrabold ${amountToneClasses[tone] || ''}`}>{currency(value)}</p></div>
 }
 
 function PageLoader() {
