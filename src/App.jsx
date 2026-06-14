@@ -17,34 +17,80 @@ const navItems = [
   { id: 'cashbook', label: 'Personal Cash Book', icon: BookOpen },
 ]
 
+const AUTH_TIMEOUT_MS = 10000
+const authRequest = async (request) => {
+  let timeoutId
+  try {
+    return await Promise.race([
+      request,
+      new Promise((_, reject) => {
+        timeoutId = window.setTimeout(
+          () => reject(new Error('Authentication timed out. Check your internet connection and try again.')),
+          AUTH_TIMEOUT_MS,
+        )
+      }),
+    ])
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 const emptyProduct = () => ({ id: crypto.randomUUID(), product_name: '', quantity: '', purchase_rate: '', sale_rate: '' })
-const emptyTruck = () => ({ truck_number: '', entry_date: today(), products: [emptyProduct()] })
+const emptyTruck = () => ({ id: crypto.randomUUID(), truck_number: '', entry_date: today(), products: [emptyProduct()] })
 
 function App() {
   const [session, setSession] = useState(null)
-  const [demoAccess, setDemoAccess] = useState(!isSupabaseConfigured)
   const [loadingAuth, setLoadingAuth] = useState(isSupabaseConfigured)
 
   useEffect(() => {
     if (!supabase) return
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
+    const initializeSession = async () => {
+      try {
+        const { data, error } = await authRequest(supabase.auth.getSession())
+        if (error || !data.session) {
+          setSession(null)
+          return
+        }
+        const { data: userData, error: userError } = await authRequest(supabase.auth.getUser())
+        if (userError || !userData.user) {
+          setSession(null)
+          supabase.auth.signOut({ scope: 'local' })
+          return
+        }
+        setSession(data.session)
+      } catch {
+        setSession(null)
+      } finally {
+        setLoadingAuth(false)
+      }
+    }
+    initializeSession()
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next)
       setLoadingAuth(false)
     })
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next))
     return () => data.subscription.unsubscribe()
   }, [])
 
+  const logout = async () => {
+    setSession(null)
+    try {
+      await authRequest(supabase.auth.signOut({ scope: 'local' }))
+    } catch {
+      // The local UI is already signed out; a fresh tab will require authentication.
+    }
+  }
+
   if (loadingAuth) return <Splash />
-  if (!session && !demoAccess) return <Login onDemo={() => setDemoAccess(true)} />
-  return <Workspace session={session} onLogout={() => session ? supabase.auth.signOut() : setDemoAccess(false)} />
+  if (isSupabaseConfigured && !session) return <Login />
+  return <Workspace session={session} onLogout={session ? logout : null} />
 }
 
 function Splash() {
   return <div className="grid min-h-screen place-items-center bg-canvas dark:bg-slate-950"><div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-600" /></div>
 }
 
-function Login({ onDemo }) {
+function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
@@ -55,9 +101,14 @@ function Login({ onDemo }) {
     event.preventDefault()
     setBusy(true)
     setError('')
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    if (authError) setError(authError.message)
-    setBusy(false)
+    try {
+      const { error: authError } = await authRequest(supabase.auth.signInWithPassword({ email, password }))
+      if (authError) throw authError
+    } catch (err) {
+      setError(err.message || 'Unable to sign in. Please try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -79,7 +130,6 @@ function Login({ onDemo }) {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button disabled={busy} className="btn-primary w-full justify-center">{busy ? 'Signing in...' : 'Sign in'} <ArrowRight size={18} /></button>
         </form>
-        <button onClick={onDemo} className="mt-4 w-full text-center text-sm font-semibold text-brand-600 hover:text-brand-700">Preview demo workspace</button>
       </div>
     </main>
   )
@@ -93,15 +143,15 @@ function Workspace({ session, onLogout }) {
   const [sidebar, setSidebar] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark')
 
-  const load = async () => {
+  const load = async ({ showLoader = true } = {}) => {
     try {
-      setLoading(true)
+      if (showLoader) setLoading(true)
       setData(await dataService.load())
       setError('')
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Unable to load data. Please try again.')
     } finally {
-      setLoading(false)
+      if (showLoader) setLoading(false)
     }
   }
 
@@ -141,9 +191,9 @@ function Workspace({ session, onLogout }) {
           {loading ? <PageLoader /> : (
             <>
               {page === 'dashboard' && <Dashboard data={data} navigate={navigate} />}
-              {page === 'trucks' && <Trucks data={data} reload={load} />}
-              {page === 'salesman' && <Salesman data={data} reload={load} />}
-              {page === 'cashbook' && <CashBook data={data} reload={load} />}
+              {page === 'trucks' && <Trucks data={data} reload={() => load({ showLoader: false })} />}
+              {page === 'salesman' && <Salesman data={data} reload={() => load({ showLoader: false })} />}
+              {page === 'cashbook' && <CashBook data={data} reload={() => load({ showLoader: false })} />}
             </>
           )}
         </main>
@@ -177,7 +227,7 @@ function Sidebar({ page, navigate, open, close, onLogout }) {
           <div className="flex items-center gap-3">
             <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-700 dark:bg-brand-900 dark:text-brand-100">AK</div>
             <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">Admin User</p><p className="truncate text-[11px] text-muted">Administrator</p></div>
-            <button onClick={onLogout} className="text-slate-400 hover:text-red-600"><LogOut size={17} /></button>
+            {onLogout && <button onClick={onLogout} className="text-slate-400 hover:text-red-600" title="Sign out"><LogOut size={17} /></button>}
           </div>
         </div>
       </aside>
@@ -244,7 +294,11 @@ function Trucks({ data, reload }) {
   const filtered = data.trucks.filter((truck) => truck.truck_number.toLowerCase().includes(query.toLowerCase()))
 
   const edit = (truck) => { setEditing(truck); setFormOpen(true) }
-  const remove = async () => { await dataService.deleteTruck(deleting.id); setDeleting(null); reload() }
+  const remove = async () => {
+    await dataService.deleteTruck(deleting.id)
+    setDeleting(null)
+    reload()
+  }
 
   return (
     <div className="space-y-6">
@@ -287,7 +341,15 @@ function TruckForm({ initial, onClose, onSaved }) {
       return
     }
     setSaving(true)
-    try { await dataService.saveTruck(form); onSaved() } catch (err) { setError(err.message); setSaving(false) }
+    setError('')
+    try {
+      await dataService.saveTruck(form)
+      onSaved()
+    } catch (err) {
+      setError(err.message || 'Unable to save the truck entry. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
   return (
     <Modal wide title={initial ? 'Edit truck entry' : 'New truck entry'} subtitle="Add truck details and all products carried." onClose={onClose}>
@@ -330,8 +392,17 @@ function Salesman({ data, reload }) {
   const [query, setQuery] = useState('')
   const metrics = useMetrics(data)
   const ledger = useLedger(data).filter((row) => `${row.description} ${row.type}`.toLowerCase().includes(query.toLowerCase()))
-  const save = async (record) => { await dataService.saveCollection(record); setFormOpen(false); setEditing(null); reload() }
-  const remove = async () => { await dataService.deleteCollection(deleting.id); setDeleting(null); reload() }
+  const save = async (record) => {
+    await dataService.saveCollection(record)
+    setFormOpen(false)
+    setEditing(null)
+    reload()
+  }
+  const remove = async () => {
+    await dataService.deleteCollection(deleting.id)
+    setDeleting(null)
+    reload()
+  }
 
   return (
     <div className="space-y-6">
@@ -361,8 +432,17 @@ function CashBook({ data, reload }) {
   const [query, setQuery] = useState('')
   const metrics = useMetrics(data)
   const rows = [...data.cashBook].sort((a, b) => b.transaction_date.localeCompare(a.transaction_date)).filter((row) => row.description.toLowerCase().includes(query.toLowerCase()))
-  const save = async (record) => { await dataService.saveCashBook({ ...record, type: editing?.type || type }); setType(null); setEditing(null); reload() }
-  const remove = async () => { await dataService.deleteCashBook(deleting.id); setDeleting(null); reload() }
+  const save = async (record) => {
+    await dataService.saveCashBook({ ...record, type: editing?.type || type })
+    setType(null)
+    setEditing(null)
+    reload()
+  }
+  const remove = async () => {
+    await dataService.deleteCashBook(deleting.id)
+    setDeleting(null)
+    reload()
+  }
   return (
     <div className="space-y-6">
       <PageHeading eyebrow="Owner's independent account" title="Personal cash book" description="Track personal and business cash movement separately.">
@@ -387,10 +467,24 @@ function CashBook({ data, reload }) {
 }
 
 function SimpleEntry({ title, subtitle, initial, dateKey, onClose, onSave }) {
-  const [form, setForm] = useState(initial || { [dateKey]: today(), amount: '', description: '' })
+  const [form, setForm] = useState(initial || { id: crypto.randomUUID(), [dateKey]: today(), amount: '', description: '' })
   const [saving, setSaving] = useState(false)
-  return <Modal title={title} subtitle={subtitle} onClose={onClose}><form onSubmit={async (e) => { e.preventDefault(); setSaving(true); await onSave(form) }}>
+  const [error, setError] = useState('')
+  const submit = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      await onSave(form)
+    } catch (err) {
+      setError(err.message || 'Unable to save this transaction. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+  return <Modal title={title} subtitle={subtitle} onClose={onClose}><form onSubmit={submit}>
     <div className="space-y-4"><Field label="Date" type="date" value={form[dateKey]} onChange={(v) => setForm({ ...form, [dateKey]: v })} required /><Field label="Amount received (Rs)" type="number" value={form.amount} onChange={(v) => setForm({ ...form, amount: Number(v) })} placeholder="0" min="1" required /><Field label="Description" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Add a clear description" required /></div>
+    {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
     <ModalActions onClose={onClose} saving={saving} label="Save transaction" />
   </form></Modal>
 }
@@ -424,7 +518,19 @@ function ModalActions({ onClose, saving, label }) {
 }
 
 function Confirm({ title, text, onCancel, onConfirm }) {
-  return <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/45 p-5 backdrop-blur-sm"><div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900"><div className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-600 dark:bg-red-950"><Trash2 size={20} /></div><h3 className="mt-5 font-display text-xl font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-muted">{text}</p><div className="mt-6 flex justify-end gap-2"><button onClick={onCancel} className="btn-secondary">Cancel</button><button onClick={onConfirm} className="btn-danger">Delete record</button></div></div></div>
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const confirm = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      await onConfirm()
+    } catch (err) {
+      setError(err.message || 'Unable to delete this record. Please try again.')
+      setBusy(false)
+    }
+  }
+  return <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/45 p-5 backdrop-blur-sm"><div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900"><div className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-600 dark:bg-red-950"><Trash2 size={20} /></div><h3 className="mt-5 font-display text-xl font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-muted">{text}</p>{error && <p className="mt-3 text-sm text-red-600">{error}</p>}<div className="mt-6 flex justify-end gap-2"><button disabled={busy} onClick={onCancel} className="btn-secondary">Cancel</button><button disabled={busy} onClick={confirm} className="btn-danger disabled:cursor-not-allowed disabled:opacity-60">{busy ? 'Deleting...' : 'Delete record'}</button></div></div></div>
 }
 
 function Total({ label, value, accent }) {

@@ -1,6 +1,26 @@
 import { isSupabaseConfigured, supabase } from './supabase'
 
 const STORAGE_KEY = 'raahbar-truck-cash-v1'
+const REQUEST_TIMEOUT_MS = 15000
+
+const databaseRequest = async (request, action) => {
+  let timeoutId
+  try {
+    const result = await Promise.race([
+      Promise.resolve(request),
+      new Promise((_, reject) => {
+        timeoutId = window.setTimeout(
+          () => reject(new Error(`${action} timed out. Check your internet connection and try again.`)),
+          REQUEST_TIMEOUT_MS,
+        )
+      }),
+    ])
+    if (result.error) throw new Error(result.error.message || `${action} failed.`)
+    return result.data
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
 
 const seed = {
   trucks: [
@@ -45,20 +65,27 @@ export const dataService = {
       return { ...data, trucks: data.trucks.map(normalizeTruck) }
     }
     const [trucks, collections, cashBook] = await Promise.all([
-      supabase.from('trucks').select('*, truck_products(*)').order('entry_date', { ascending: false }),
-      supabase.from('cash_collections').select('*').order('collection_date', { ascending: false }),
-      supabase.from('cash_book').select('*').order('transaction_date', { ascending: false }),
+      databaseRequest(
+        supabase.from('trucks').select('*, truck_products(*)').order('entry_date', { ascending: false }),
+        'Loading truck entries',
+      ),
+      databaseRequest(
+        supabase.from('cash_collections').select('*').order('collection_date', { ascending: false }),
+        'Loading cash collections',
+      ),
+      databaseRequest(
+        supabase.from('cash_book').select('*').order('transaction_date', { ascending: false }),
+        'Loading cash book',
+      ),
     ])
-    const error = trucks.error || collections.error || cashBook.error
-    if (error) throw error
     return {
-  trucks: trucks.data.map(normalizeTruck),
-  cashCollections: collections.data,
-  cashBook: cashBook.data.map((row) => ({
-    ...row,
-    type: row.type || row.transaction_type,
-  })),
-}
+      trucks: trucks.map(normalizeTruck),
+      cashCollections: collections,
+      cashBook: cashBook.map((row) => ({
+        ...row,
+        type: row.type || row.transaction_type,
+      })),
+    }
   },
 
   async saveTruck(truck) {
@@ -86,18 +113,37 @@ export const dataService = {
       entry_date: truck.entry_date,
     }
     const products = normalizedTruck.products
-    const { data, error } = await supabase.from('trucks').upsert(header).select().single()
-    if (error) throw error
-    await supabase.from('truck_products').delete().eq('truck_id', data.id)
+    const isExistingTruck = Boolean(truck.created_at)
+    const existingProducts = isExistingTruck
+      ? await databaseRequest(
+          supabase.from('truck_products').select('id').eq('truck_id', truck.id),
+          'Loading existing products',
+        )
+      : []
+    const savedTruck = await databaseRequest(
+      supabase.from('trucks').upsert(header).select().single(),
+      isExistingTruck ? 'Updating truck entry' : 'Creating truck entry',
+    )
     const productRows = products.map((product) => ({
+      id: product.id,
       product_name: product.product_name,
       quantity: product.quantity,
       purchase_rate: product.purchase_rate,
       sale_rate: product.sale_rate,
-      truck_id: data.id,
+      truck_id: savedTruck.id,
     }))
-    const { error: productError } = await supabase.from('truck_products').insert(productRows)
-    if (productError) throw productError
+    await databaseRequest(
+      supabase.from('truck_products').upsert(productRows),
+      'Saving truck products',
+    )
+    const currentIds = new Set(productRows.map((product) => product.id))
+    const removedIds = existingProducts.filter((product) => !currentIds.has(product.id)).map((product) => product.id)
+    if (removedIds.length) {
+      await databaseRequest(
+        supabase.from('truck_products').delete().in('id', removedIds),
+        'Removing deleted products',
+      )
+    }
   },
 
   async deleteTruck(id) {
@@ -107,49 +153,43 @@ export const dataService = {
       localWrite(data)
       return
     }
-    const { error } = await supabase.from('trucks').delete().eq('id', id)
-    if (error) throw error
+    await databaseRequest(supabase.from('trucks').delete().eq('id', id), 'Deleting truck entry')
   },
 
   async saveCollection(collection) {
     if (!isSupabaseConfigured) return this.saveLocalList('cashCollections', collection)
-    const { error } = await supabase.from('cash_collections').upsert(collection)
-    if (error) throw error
+    await databaseRequest(
+      supabase.from('cash_collections').upsert({ ...collection, amount: Number(collection.amount) }),
+      collection.created_at ? 'Updating cash collection' : 'Saving cash collection',
+    )
   },
 
   async deleteCollection(id) {
     if (!isSupabaseConfigured) return this.deleteLocalList('cashCollections', id)
-    const { error } = await supabase.from('cash_collections').delete().eq('id', id)
-    if (error) throw error
+    await databaseRequest(
+      supabase.from('cash_collections').delete().eq('id', id),
+      'Deleting cash collection',
+    )
   },
 
- async saveCashBook(record) {
-  if (!isSupabaseConfigured) {
-    return this.saveLocalList('cashBook', record)
-  }
-
-  const payload = {
-    ...(record.id ? { id: record.id } : {}),
-    transaction_date: record.transaction_date,
-    transaction_type: record.type,
-    amount: Number(record.amount),
-    description: record.description,
-  }
-
-  const { error } = await supabase
-    .from('cash_book')
-    .upsert(payload)
-
-  if (error) {
-    console.error('Cash Book Error:', error)
-    throw error
-  }
-},
+  async saveCashBook(record) {
+    if (!isSupabaseConfigured) return this.saveLocalList('cashBook', record)
+    const payload = {
+      ...(record.id ? { id: record.id } : {}),
+      transaction_date: record.transaction_date,
+      type: record.type,
+      amount: Number(record.amount),
+      description: record.description,
+    }
+    await databaseRequest(
+      supabase.from('cash_book').upsert(payload),
+      record.created_at ? 'Updating cash book entry' : 'Saving cash book entry',
+    )
+  },
 
   async deleteCashBook(id) {
     if (!isSupabaseConfigured) return this.deleteLocalList('cashBook', id)
-    const { error } = await supabase.from('cash_book').delete().eq('id', id)
-    if (error) throw error
+    await databaseRequest(supabase.from('cash_book').delete().eq('id', id), 'Deleting cash book entry')
   },
 
   saveLocalList(key, record) {
