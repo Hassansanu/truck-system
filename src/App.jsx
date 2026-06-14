@@ -7,6 +7,7 @@ import {
   WalletCards, X,
 } from 'lucide-react'
 import { currency, downloadCsv, formatDate, today } from './lib/format'
+import { PRODUCT_OPTIONS } from './lib/products'
 import { dataService } from './lib/store'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 
@@ -358,7 +359,7 @@ function TruckForm({ initial, onClose, onSaved }) {
           <Field label="Truck number" value={form.truck_number} onChange={(v) => set('truck_number', v.toUpperCase())} placeholder="e.g. JY-7842" required />
           <Field label="Entry date" type="date" value={form.entry_date} onChange={(v) => set('entry_date', v)} required />
         </div>
-        <div className="mt-7 flex items-center justify-between"><div><h4 className="font-display font-bold">Products</h4><p className="text-xs text-muted">Add one or more products in this truck.</p></div><button type="button" onClick={() => setForm((f) => ({ ...f, products: [...f.products, emptyProduct()] }))} className="btn-secondary btn-small"><Plus size={15} /> Add row</button></div>
+        <div className="mt-7 flex items-center justify-between"><div><h4 className="font-display font-bold">Products</h4><p className="text-xs text-muted">Select one or more products carried in this truck.</p></div><button type="button" onClick={() => setForm((f) => ({ ...f, products: [...f.products, emptyProduct()] }))} className="btn-secondary btn-small"><Plus size={15} /> Add row</button></div>
         <div className="mt-4 space-y-3">
           {form.products.map((p, index) => {
             const purchase = Number(p.quantity || 0) * Number(p.purchase_rate || 0)
@@ -366,7 +367,7 @@ function TruckForm({ initial, onClose, onSaved }) {
             return <div key={p._key} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/40">
               <div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-muted">Product {index + 1}</span>{form.products.length > 1 && <button type="button" onClick={() => setForm((f) => ({ ...f, products: f.products.filter((row) => row._key !== p._key) }))} className="text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>}</div>
               <div className="grid gap-3 md:grid-cols-4">
-                <Field label="Product name" value={p.product_name} onChange={(v) => setProduct(p._key, 'product_name', v)} placeholder="Product" required />
+                <SelectField label="Product name" value={p.product_name} onChange={(v) => setProduct(p._key, 'product_name', v)} options={PRODUCT_OPTIONS} placeholder="Select product" required />
                 <Field label="Quantity" type="number" value={p.quantity} onChange={(v) => setProduct(p._key, 'quantity', v)} placeholder="0" required min="1" step="1" />
                 <Field label="Purchase rate" type="number" value={p.purchase_rate} onChange={(v) => setProduct(p._key, 'purchase_rate', v)} placeholder="Rs 0" required min="0" step="1" />
                 <Field label="Sale rate" type="number" value={p.sale_rate} onChange={(v) => setProduct(p._key, 'sale_rate', v)} placeholder="Rs 0" required min="0" step="1" />
@@ -507,6 +508,19 @@ function TableFooter({ count }) {
 
 function Field({ label, value, onChange, type = 'text', ...props }) {
   return <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span><input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="input" {...props} /></label>
+}
+
+function SelectField({ label, value, onChange, options, placeholder, ...props }) {
+  const availableOptions = value && !options.includes(value) ? [value, ...options] : options
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="input" {...props}>
+        <option value="">{placeholder}</option>
+        {availableOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </label>
+  )
 }
 
 function Modal({ title, subtitle, onClose, children, wide = false }) {
