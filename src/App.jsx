@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowDownLeft, ArrowRight, ArrowUpRight, Banknote, BarChart3, BookOpen,
   Boxes, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign,
-  Download, Edit3, Eye, EyeOff, FileText, LayoutDashboard, LogOut, Menu, Moon,
+  DatabaseBackup, Download, Edit3, Eye, EyeOff, FileSpreadsheet, FileText,
+  HardDriveDownload, LayoutDashboard, LogOut, Menu, Moon,
   MoreHorizontal, Package, Plus, Search, Settings, Sun, Trash2, Truck, UserRound,
   WalletCards, X,
 } from 'lucide-react'
 import { currency, downloadCsv, formatDate, today } from './lib/format'
+import { downloadFullBackup } from './lib/backup'
 import { PRODUCT_OPTIONS } from './lib/products'
 import { dataService } from './lib/store'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
@@ -17,6 +19,7 @@ const navItems = [
   { id: 'salesman', label: 'Salesman Account', icon: UserRound },
   { id: 'cashbook', label: 'Personal Cash Book', icon: BookOpen },
   { id: 'reports', label: 'Monthly Reports', icon: FileText },
+  { id: 'backup', label: 'Backup & Export', icon: DatabaseBackup },
 ]
 
 const AUTH_TIMEOUT_MS = 10000
@@ -204,6 +207,7 @@ function Workspace({ session, onLogout }) {
               {page === 'salesman' && <Salesman data={data} reload={() => load({ showLoader: false })} />}
               {page === 'cashbook' && <CashBook data={data} reload={() => load({ showLoader: false })} />}
               {page === 'reports' && <MonthlyReports data={data} />}
+              {page === 'backup' && <BackupExport data={data} />}
             </>
           )}
         </main>
@@ -429,7 +433,15 @@ function Salesman({ data, reload }) {
           {ledger.map((row) => <tr key={`${row.type}-${row.id}`}><td>{formatDate(row.date)}</td><td><span className={`badge ${row.type === 'Truck Entry' ? 'badge-blue' : 'badge-green'}`}>{row.type}</span></td><td>{row.description}</td><td className="font-bold text-blue-700 dark:text-blue-300">{row.debit ? currency(row.debit) : '—'}</td><td className="font-bold text-emerald-700 dark:text-emerald-300">{row.credit ? currency(row.credit) : '—'}</td><td className={`font-extrabold ${row.balance > 0 ? amountToneClasses.amber : amountToneClasses.green}`}>{currency(row.balance)}</td><td>{row.type === 'Cash Received' && <RowActions onEdit={() => { setEditing(data.cashCollections.find((c) => c.id === row.id)); setFormOpen(true) }} onDelete={() => setDeleting(data.cashCollections.find((c) => c.id === row.id))} />}</td></tr>)}
         </tbody></table></div><TableFooter count={ledger.length} />
       </div>
-      {formOpen && <SimpleEntry title={editing ? 'Edit cash collection' : 'Cash collection'} subtitle="Record cash received from the salesman." initial={editing} dateKey="collection_date" onClose={() => { setFormOpen(false); setEditing(null) }} onSave={save} />}
+      {formOpen && <SimpleEntry
+        title={editing ? 'Edit cash collection' : 'Cash collection'}
+        subtitle="Record cash received from the salesman."
+        initial={editing}
+        dateKey="collection_date"
+        cashInOption={!editing}
+        onClose={() => { setFormOpen(false); setEditing(null) }}
+        onSave={save}
+      />}
       {deleting && <Confirm title="Delete cash collection?" text="This will increase the salesman outstanding balance." onCancel={() => setDeleting(null)} onConfirm={remove} />}
     </div>
   )
@@ -550,8 +562,89 @@ function MonthlyReports({ data }) {
   )
 }
 
-function SimpleEntry({ title, subtitle, initial, dateKey, onClose, onSave }) {
-  const [form, setForm] = useState(initial || { [dateKey]: today(), amount: '', description: '' })
+function BackupExport({ data }) {
+  const [exporting, setExporting] = useState(false)
+  const [error, setError] = useState('')
+  const [lastBackup, setLastBackup] = useState(null)
+  const visibleRecords = data.trucks.length
+    + data.trucks.reduce((total, truck) => total + truck.products.length, 0)
+    + data.cashCollections.length
+    + data.cashBook.length
+
+  const downloadBackup = async () => {
+    setExporting(true)
+    setError('')
+    try {
+      const fullData = await dataService.loadBackupData()
+      const counts = await downloadFullBackup(fullData)
+      setLastBackup({ ...counts, createdAt: new Date() })
+    } catch (err) {
+      setError(err.message || 'Unable to create the Excel backup. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeading eyebrow="Database protection" title="Backup & export" description="Download a complete Excel copy of every truck, product, collection, and cash transaction.">
+        <button onClick={downloadBackup} disabled={exporting} className="btn-primary">
+          <HardDriveDownload size={18} />
+          {exporting ? 'Preparing full backup...' : 'Download Excel backup'}
+        </button>
+      </PageHeading>
+
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{error}</div>}
+      {lastBackup && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+          Backup downloaded successfully at {lastBackup.createdAt.toLocaleTimeString('en-PK')}. It contains {lastBackup.trucks} trucks, {lastBackup.products} products, {lastBackup.collections} collections, and {lastBackup.cashBook} cash entries.
+        </div>
+      )}
+
+      <section className="grid gap-4 sm:grid-cols-3">
+        <MetricCard label="Visible Records" value={visibleRecords} note="Currently loaded in the app" icon={FileSpreadsheet} tone="blue" />
+        <MetricCard label="Workbook Sheets" value="6" note="Separate organized data tabs" icon={FileText} tone="violet" />
+        <MetricCard label="Backup Format" value=".XLSX" note="Opens in Excel and Google Sheets" icon={DatabaseBackup} tone="green" />
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+        <div className="card p-5 md:p-6">
+          <div className="flex items-center gap-3"><span className="metric-icon metric-green"><FileSpreadsheet size={20} /></span><div><h3 className="card-title">Included Excel sheets</h3><p className="card-subtitle">Every area is stored separately for easy review and restoration.</p></div></div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {[
+              ['Backup Summary', 'Record counts and all major PKR totals'],
+              ['Trucks', 'Truck dates, values, profit, notes, and IDs'],
+              ['Truck Products', 'Every product linked to its original truck'],
+              ['Salesman Collections', 'Complete collection history and descriptions'],
+              ['Cash Book', 'All cash-in and cash-out transactions'],
+              ['Monthly Summary', 'Month-by-month investment, sales, and cash totals'],
+            ].map(([title, description]) => (
+              <div key={title} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                <p className="text-sm font-bold">{title}</p>
+                <p className="mt-1 text-xs leading-5 text-muted">{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card p-5 md:p-6">
+          <div className="flex items-center gap-3"><span className="metric-icon metric-amber"><DatabaseBackup size={20} /></span><div><h3 className="card-title">Recommended routine</h3><p className="card-subtitle">A simple backup habit protects years of records.</p></div></div>
+          <div className="mt-6 space-y-4 text-sm text-slate-600 dark:text-slate-300">
+            <p><strong className="text-ink dark:text-white">Weekly:</strong> Download a backup after the week’s entries are complete.</p>
+            <p><strong className="text-ink dark:text-white">Monthly:</strong> Keep the final monthly file in Google Drive, OneDrive, or an external disk.</p>
+            <p><strong className="text-ink dark:text-white">Do not edit:</strong> Preserve at least one original downloaded workbook for future database restoration.</p>
+          </div>
+          <button onClick={downloadBackup} disabled={exporting} className="btn-secondary mt-6 w-full justify-center">
+            <Download size={17} /> {exporting ? 'Preparing backup...' : 'Create backup now'}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function SimpleEntry({ title, subtitle, initial, dateKey, onClose, onSave, cashInOption = false }) {
+  const [form, setForm] = useState(initial || { [dateKey]: today(), amount: '', description: '', add_to_cash_book: false })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const submit = async (event) => {
@@ -567,7 +660,25 @@ function SimpleEntry({ title, subtitle, initial, dateKey, onClose, onSave }) {
     }
   }
   return <Modal title={title} subtitle={subtitle} onClose={onClose}><form onSubmit={submit}>
-    <div className="space-y-4"><Field label="Date" type="date" value={form[dateKey]} onChange={(v) => setForm({ ...form, [dateKey]: v })} required /><Field label="Amount received (Rs)" type="number" value={form.amount} onChange={(v) => setForm({ ...form, amount: Number(v) })} placeholder="0" min="1" required /><Field label="Description" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Add a clear description" required /></div>
+    <div className="space-y-4">
+      <Field label="Date" type="date" value={form[dateKey]} onChange={(v) => setForm({ ...form, [dateKey]: v })} required />
+      <Field label="Amount received (Rs)" type="number" value={form.amount} onChange={(v) => setForm({ ...form, amount: Number(v) })} placeholder="0" min="1" required />
+      <Field label="Description" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Add a clear description" required />
+      {cashInOption && (
+        <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${form.add_to_cash_book ? 'border-brand-300 bg-brand-50 dark:border-brand-700 dark:bg-brand-950/30' : 'border-slate-200 dark:border-slate-700'}`}>
+          <input
+            type="checkbox"
+            checked={Boolean(form.add_to_cash_book)}
+            onChange={(event) => setForm({ ...form, add_to_cash_book: event.target.checked })}
+            className="mt-0.5 h-4 w-4 accent-brand-600"
+          />
+          <span>
+            <span className="block text-sm font-bold text-ink dark:text-white">Also add this amount to Cash In</span>
+            <span className="mt-1 block text-xs leading-5 text-muted">Select this when the salesman’s payment has physically entered your personal cash balance.</span>
+          </span>
+        </label>
+      )}
+    </div>
     {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
     <ModalActions onClose={onClose} saving={saving} label="Save transaction" />
   </form></Modal>

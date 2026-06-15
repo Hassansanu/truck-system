@@ -2,6 +2,7 @@ import { isSupabaseConfigured, supabase } from './supabase'
 
 const STORAGE_KEY = 'raahbar-truck-cash-v1'
 const REQUEST_TIMEOUT_MS = 15000
+const BACKUP_PAGE_SIZE = 1000
 
 const databaseRequest = async (request, action) => {
   let timeoutId
@@ -58,6 +59,21 @@ const localRead = () => {
 
 const localWrite = (data) => localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
 
+const loadAllRows = async (queryFactory, action) => {
+  const rows = []
+  let start = 0
+
+  while (true) {
+    const page = await databaseRequest(
+      queryFactory().range(start, start + BACKUP_PAGE_SIZE - 1),
+      action,
+    )
+    rows.push(...page)
+    if (page.length < BACKUP_PAGE_SIZE) return rows
+    start += BACKUP_PAGE_SIZE
+  }
+}
+
 export const dataService = {
   async load() {
     if (!isSupabaseConfigured) {
@@ -80,6 +96,50 @@ export const dataService = {
     ])
     return {
       trucks: trucks.map(normalizeTruck),
+      cashCollections: collections,
+      cashBook: cashBook.map((row) => ({
+        ...row,
+        type: row.type || row.transaction_type,
+      })),
+    }
+  },
+
+  async loadBackupData() {
+    if (!isSupabaseConfigured) {
+      const data = localRead()
+      return { ...data, trucks: data.trucks.map(normalizeTruck) }
+    }
+
+    const [trucks, products, collections, cashBook] = await Promise.all([
+      loadAllRows(
+        () => supabase.from('trucks').select('*').order('id', { ascending: true }),
+        'Loading all trucks for backup',
+      ),
+      loadAllRows(
+        () => supabase.from('truck_products').select('*').order('id', { ascending: true }),
+        'Loading all truck products for backup',
+      ),
+      loadAllRows(
+        () => supabase.from('cash_collections').select('*').order('id', { ascending: true }),
+        'Loading all cash collections for backup',
+      ),
+      loadAllRows(
+        () => supabase.from('cash_book').select('*').order('id', { ascending: true }),
+        'Loading all cash book entries for backup',
+      ),
+    ])
+    const productsByTruck = products.reduce((groups, product) => {
+      const truckProducts = groups.get(product.truck_id) || []
+      truckProducts.push(product)
+      groups.set(product.truck_id, truckProducts)
+      return groups
+    }, new Map())
+
+    return {
+      trucks: trucks.map((truck) => normalizeTruck({
+        ...truck,
+        products: productsByTruck.get(truck.id) || [],
+      })),
       cashCollections: collections,
       cashBook: cashBook.map((row) => ({
         ...row,
@@ -169,11 +229,32 @@ export const dataService = {
   },
 
   async saveCollection(collection) {
-    if (!isSupabaseConfigured) return this.saveLocalList('cashCollections', collection)
+    const addToCashBook = !collection.id && Boolean(collection.add_to_cash_book)
     const payload = {
       collection_date: collection.collection_date,
       amount: Number(collection.amount),
       description: collection.description,
+    }
+    if (!isSupabaseConfigured) {
+      const data = localRead()
+      const savedCollection = {
+        ...payload,
+        id: collection.id || crypto.randomUUID(),
+      }
+      const existingIndex = data.cashCollections.findIndex((row) => row.id === savedCollection.id)
+      if (existingIndex >= 0) data.cashCollections[existingIndex] = savedCollection
+      else data.cashCollections.push(savedCollection)
+      if (addToCashBook) {
+        data.cashBook.push({
+          id: crypto.randomUUID(),
+          transaction_date: collection.collection_date,
+          type: 'in',
+          amount: Number(collection.amount),
+          description: `Received from salesman: ${collection.description}`,
+        })
+      }
+      localWrite(data)
+      return
     }
     if (collection.id) {
       await databaseRequest(
@@ -181,7 +262,29 @@ export const dataService = {
         'Updating cash collection',
       )
     } else {
-      await databaseRequest(supabase.from('cash_collections').insert(payload), 'Saving cash collection')
+      const savedCollection = await databaseRequest(
+        supabase.from('cash_collections').insert(payload).select('id').single(),
+        'Saving cash collection',
+      )
+      if (addToCashBook) {
+        try {
+          await databaseRequest(
+            supabase.from('cash_book').insert({
+              transaction_date: collection.collection_date,
+              transaction_type: 'in',
+              amount: Number(collection.amount),
+              description: `Received from salesman: ${collection.description}`,
+            }),
+            'Adding salesman receipt to cash in',
+          )
+        } catch (error) {
+          await databaseRequest(
+            supabase.from('cash_collections').delete().eq('id', savedCollection.id),
+            'Rolling back cash collection',
+          )
+          throw error
+        }
+      }
     }
   },
 
